@@ -12,7 +12,7 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@02d03bf8ef56fccce66c7b563573c68f52c9361e
+- uses: neverhuman/jankurai-action@45375ae8a9c0aca859d4d0b63eacdeb6ff8a6432
   id: quality
   with:
     release-tag: v1.7.0
@@ -24,8 +24,9 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins the reviewed initial implementation. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34403006257)
-passed the contract suite and real public-auditor failure tests. A stable `v1.8.0`
+This example pins the reviewed consumer and ratchet repair. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34412260881)
+passed all 126 contract tests and real public-auditor positive, stronger-policy
+and regression checks at both floors. A stable `v1.8.0`
 example will follow successful 1.8.0 public consumer tests.
 
 | Input | Default | Meaning |
