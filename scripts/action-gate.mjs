@@ -100,6 +100,9 @@ export function enforceReport(report, requestedFloor, mode) {
       requireValue(typeof ratchet[name] === 'string' && /^sha256:[0-9a-f]{64}$/.test(ratchet[name]), `invalid ratchet ${name}`);
     }
     requireValue(ratchet.passed, 'ratchet did not pass');
+    requireValue(ratchet.allowed_drop === 0 && ratchet.score_delta >= 0
+      && ratchet.new_caps.length === 0 && ratchet.new_hard_findings.length === 0
+      && !ratchet.policy_changed, 'ratchet decision contradicts regression evidence');
   } else requireValue(!['ratchet', 'release'].includes(mode), 'required ratchet decision is missing');
   const floor = Math.max(requested, decision.minimum_score);
   requireValue(report.score >= floor, `score ${report.score} is below required floor ${floor}`);

@@ -12,7 +12,7 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@02d03bf8ef56fccce66c7b563573c68f52c9361e
+- uses: neverhuman/jankurai-action@45375ae8a9c0aca859d4d0b63eacdeb6ff8a6432
   id: quality
   with:
     release-tag: v1.7.0
@@ -24,8 +24,9 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins the reviewed initial implementation. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34403006257)
-passed the contract suite and real public-auditor failure tests. A stable `v1.8.0`
+This example pins the reviewed consumer and ratchet repair. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34412260881)
+passed all 126 contract tests and real public-auditor positive, stronger-policy
+and regression checks at both floors. A stable `v1.8.0`
 example will follow successful 1.8.0 public consumer tests.
 
 | Input | Default | Meaning |
@@ -40,6 +41,8 @@ example will follow successful 1.8.0 public consumer tests.
 The effective score requirement retains a stronger repository policy. Setting
 `fail-under: '0'` removes only the additional Action floor. Hard findings, failed
 scanners, unsuccessful auditor exits and ratchet failures still fail the step.
+A passing ratchet flag must also agree with its score, caps, findings and policy;
+the supported producer contract permits no score drop or policy change.
 An advisory audit cannot hide a failed policy decision.
 
 Each invocation creates a private directory below `RUNNER_TEMP`. Outputs are
@@ -60,7 +63,11 @@ x86-64 and Apple Silicon macOS. This repository does not publish auditor binarie
 Run `npm test` to exercise the preserved score, policy, freshness and installer
 contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI also
 runs the composite Action with the real public `v1.7.0` auditor on authored
-incomplete repositories at floors 85 and 90. This verifies installation and real
-failure propagation; successful 1.8.0 consumers remain a release gate.
+incomplete repositories at floors 85 and 90. A separate required matrix audits
+immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
+floors through a remotely pinned Action, then verifies that the candidate Action
+blocks a stronger policy and an unsafe workflow. Every audit retains a distinct
+fresh report. These are real v1.7.0 consumer checks; successful v1.8.0 consumers
+and an external consumer repository remain release gates.
 
 Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).

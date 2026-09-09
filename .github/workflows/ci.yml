@@ -71,13 +71,113 @@ jobs:
           name: real-public-audit-${{ matrix.floor }}
           path: ${{ steps.audit.outputs.report-directory }}
           if-no-files-found: error
+  public-positive:
+    strategy:
+      fail-fast: false
+      matrix:
+        floor: ['85', '90']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check out an immutable public consumer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: neverhuman/jankurai-core
+          ref: e831795178a3fb1d5842122625978d92e41d5af5
+          path: consumer
+          persist-credentials: false
+      - name: Resolve the remote Action and pass a real public audit
+        id: positive
+        uses: neverhuman/jankurai-action@a0f87d5be2e6534afe0fc0e65b27b2fb3734d7de
+        with:
+          release-tag: v1.7.0
+          path: consumer
+          fail-under: ${{ matrix.floor }}
+      - name: Raise the consumer policy above its measured score
+        run: |
+          test "$(git -C consumer rev-parse HEAD)" = e831795178a3fb1d5842122625978d92e41d5af5
+          sed -i 's/^minimum_score = 85$/minimum_score = 100/' consumer/agent/audit-policy.toml
+          grep -qx 'minimum_score = 100' consumer/agent/audit-policy.toml
+      - name: Retain the stronger policy with the candidate Action
+        id: stronger
+        continue-on-error: true
+        uses: ./
+        with:
+          release-tag: v1.7.0
+          path: consumer
+          fail-under: ${{ matrix.floor }}
+      - name: Restore the policy and introduce a workflow regression
+        run: |
+          sed -i 's/^minimum_score = 100$/minimum_score = 85/' consumer/agent/audit-policy.toml
+          git -C consumer diff --exit-code -- agent/audit-policy.toml
+          test ! -e consumer/.github/workflows/release-preview.yml
+          cat > consumer/.github/workflows/release-preview.yml <<'YAML'
+          name: Unsafe release preview fixture
+          on: push
+          permissions: write-all
+          jobs:
+            preview:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - run: echo preview
+          YAML
+      - name: Block the real workflow regression with the candidate Action
+        id: regression
+        continue-on-error: true
+        uses: ./
+        with:
+          release-tag: v1.7.0
+          path: consumer
+          fail-under: ${{ matrix.floor }}
+      - name: Verify all real decisions and distinct fresh reports
+        if: always()
+        env:
+          POSITIVE_OUTCOME: ${{ steps.positive.outcome }}
+          STRONGER_OUTCOME: ${{ steps.stronger.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
+          POSITIVE_JSON: ${{ steps.positive.outputs.report-json }}
+          STRONGER_JSON: ${{ steps.stronger.outputs.report-json }}
+          REGRESSION_JSON: ${{ steps.regression.outputs.report-json }}
+          FLOOR: ${{ matrix.floor }}
+        run: |
+          test "$POSITIVE_OUTCOME" = success
+          test "$STRONGER_OUTCOME" = failure
+          test "$REGRESSION_OUTCOME" = failure
+          test "$POSITIVE_JSON" != "$STRONGER_JSON"
+          test "$POSITIVE_JSON" != "$REGRESSION_JSON"
+          test "$STRONGER_JSON" != "$REGRESSION_JSON"
+          for report in "$POSITIVE_JSON" "$STRONGER_JSON" "$REGRESSION_JSON"; do
+            case "$report" in "$RUNNER_TEMP"/jankurai-action.*/repo-score.json) ;; *) exit 1 ;; esac
+            test -f "$report"
+            test ! -L "$report"
+            jq -e '.scope.mode == "full"' "$report"
+          done
+          jq -e --argjson floor "$FLOOR" '.score >= $floor and .decision.minimum_score == 85 and .decision.passed == true and .decision.hard_findings == 0' "$POSITIVE_JSON"
+          jq -e '.score < 100 and .decision.minimum_score == 100 and .decision.passed == false' "$STRONGER_JSON"
+          jq -e '.decision.minimum_score == 85 and .decision.passed == false and .decision.hard_findings > 0 and any(.findings[]; .path == ".github/workflows/release-preview.yml" and .hardness == "hard")' "$REGRESSION_JSON"
+          "$HOME/.local/bin/jankurai" --version | tee "$RUNNER_TEMP/public-auditor-version.txt"
+          sha256sum "$HOME/.local/bin/jankurai" > "$RUNNER_TEMP/public-auditor-sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: real-public-positive-and-regressions-${{ matrix.floor }}
+          path: |
+            ${{ steps.positive.outputs.report-directory }}
+            ${{ steps.stronger.outputs.report-directory }}
+            ${{ steps.regression.outputs.report-directory }}
+            ${{ runner.temp }}/public-auditor-*.txt
+          if-no-files-found: error
   required:
     name: jankurai-action/required
-    needs: [contracts, public-audit]
+    needs: [contracts, public-audit, public-positive]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:
           NEEDS_JSON: ${{ toJSON(needs) }}
-        run: jq -e -s 'length == 1 and (.[0] | type == "object" and keys == ["contracts", "public-audit"] and all(.[]; type == "object" and .result == "success"))' <<< "$NEEDS_JSON"
+        run: jq -e -s 'length == 1 and (.[0] | type == "object" and keys == ["contracts", "public-audit", "public-positive"] and all(.[]; type == "object" and .result == "success"))' <<< "$NEEDS_JSON"
