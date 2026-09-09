@@ -1,0 +1,69 @@
+name: "Jankurai Repository Quality Gate"
+description: "Audit a repository and fail CI when the Jankurai score is under a configurable floor (default 85)."
+author: "neverhuman"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  release-tag:
+    description: "Jankurai release tag to install from neverhuman/jankurai releases"
+    required: false
+    default: "v1.8.0"
+  mode:
+    description: "Audit mode: standard (blocking), advisory, ratchet, or release"
+    required: false
+    default: "standard"
+  fail-under:
+    description: "Minimum accepted score. The job fails when score is below this value. Use 90 for a tighter gate; 0 removes only this additional floor. Existing audit policy still applies."
+    required: false
+    default: "85"
+  baseline:
+    description: "Path to accepted baseline score JSON (required for ratchet or release mode)"
+    required: false
+    default: "agent/baselines/main.repo-score.json"
+  path:
+    description: "Repository path to audit"
+    required: false
+    default: "."
+  plan:
+    description: "Optional proof plan for supervised ci run. Requires the qualified Linux auditor, pinned bubblewrap and delegated cgroup v2; admission fails when unavailable. Empty uses a nonexecuting audit."
+    required: false
+    default: ""
+
+outputs:
+  report-json:
+    description: "Fresh JSON report in the runner temporary directory"
+    value: ${{ steps.audit.outputs.report-json }}
+  report-md:
+    description: "Fresh Markdown report in the runner temporary directory"
+    value: ${{ steps.audit.outputs.report-md }}
+  report-directory:
+    description: "Fresh audit artifacts; upload with if: always() to retain failed-run evidence"
+    value: ${{ steps.audit.outputs.report-directory }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up gate runtime
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: 24
+        package-manager-cache: false
+    - name: Install released jankurai
+      shell: bash
+      env:
+        JANKURAI_RELEASE_TAG: ${{ inputs.release-tag }}
+      run: bash "$GITHUB_ACTION_PATH/jankurai-installer.sh"
+    - name: Run full audit and enforce score floor
+      id: audit
+      shell: bash
+      env:
+        AUDIT_MODE: ${{ inputs.mode }}
+        AUDIT_BASELINE: ${{ inputs.baseline }}
+        AUDIT_PATH: ${{ inputs.path }}
+        FAIL_UNDER: ${{ inputs.fail-under }}
+        AUDIT_PLAN: ${{ inputs.plan }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/scripts/run-action-audit.sh" \
+          "$HOME/.local/bin/jankurai" "$AUDIT_PATH" "$AUDIT_MODE" "$AUDIT_BASELINE" "$FAIL_UNDER" "$AUDIT_PLAN"

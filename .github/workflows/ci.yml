@@ -1,0 +1,83 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+  public-audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        floor: ['85', '90']
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Create an authored incomplete repository
+        id: fixture
+        shell: bash
+        run: |
+          fixture="$(mktemp -d "$RUNNER_TEMP/jankurai-incomplete.XXXXXXXX")"
+          printf '# Authored incomplete consumer\n\nThis fixture intentionally lacks required policy and evidence.\n' > "$fixture/README.md"
+          printf 'path=%s\n' "$fixture" >> "$GITHUB_OUTPUT"
+      - name: Install public auditor and observe a real blocking audit
+        id: audit
+        continue-on-error: true
+        uses: ./
+        with:
+          release-tag: v1.7.0
+          path: ${{ steps.fixture.outputs.path }}
+          fail-under: ${{ matrix.floor }}
+      - name: Verify the real outcome and fresh report
+        if: always()
+        shell: bash
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          REPORT_JSON: ${{ steps.audit.outputs.report-json }}
+          REPORT_DIR: ${{ steps.audit.outputs.report-directory }}
+          FLOOR: ${{ matrix.floor }}
+        run: |
+          test "$AUDIT_OUTCOME" = failure
+          case "$REPORT_DIR" in "$RUNNER_TEMP"/jankurai-action.*) ;; *) exit 1 ;; esac
+          test -f "$REPORT_JSON"
+          test ! -L "$REPORT_JSON"
+          jq -e --argjson floor "$FLOOR" '.scope.mode == "full" and .score < $floor and .decision.passed == false' "$REPORT_JSON"
+          "$HOME/.local/bin/jankurai" --version | tee "$REPORT_DIR/auditor-version.txt"
+          sha256sum "$HOME/.local/bin/jankurai" > "$REPORT_DIR/auditor-sha256.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: real-public-audit-${{ matrix.floor }}
+          path: ${{ steps.audit.outputs.report-directory }}
+          if-no-files-found: error
+  required:
+    name: jankurai-action/required
+    needs: [contracts, public-audit]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$NEEDS_JSON"
