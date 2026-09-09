@@ -12,7 +12,7 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@REVIEWED_COMMIT_SHA
+- uses: neverhuman/jankurai-action@02d03bf8ef56fccce66c7b563573c68f52c9361e
   id: quality
   with:
     release-tag: v1.7.0
@@ -24,8 +24,9 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-Replace `REVIEWED_COMMIT_SHA` with the complete commit you reviewed. A stable
-`v1.8.0` example will replace this candidate example after public consumer tests.
+This example pins the reviewed initial implementation. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34403006257)
+passed the contract suite and real public-auditor failure tests. A stable `v1.8.0`
+example will follow successful 1.8.0 public consumer tests.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
@@ -62,4 +63,4 @@ runs the composite Action with the real public `v1.7.0` auditor on authored
 incomplete repositories at floors 85 and 90. This verifies installation and real
 failure propagation; successful 1.8.0 consumers remain a release gate.
 
-Report vulnerabilities through the [producer security policy](https://github.com/neverhuman/jankurai/security/policy).
+Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).
