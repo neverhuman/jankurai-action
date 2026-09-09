@@ -51,6 +51,30 @@ for (const [name, data, floor, mode, passes] of cases) {
   test(name, () => passes ? assert.doesNotThrow(() => enforceReport(data, floor, mode)) : assert.throws(() => enforceReport(data, floor, mode)));
 }
 
+for (const [name, change] of [
+  ['score regression', { baseline_score: 100, score_delta: -1 }],
+  ['nonzero allowed drop', { allowed_drop: 1 }],
+  ['new cap', { new_caps: ['release-readiness-gap'] }],
+  ['new hard finding', { new_hard_findings: [fingerprint] }],
+  ['policy changed', { policy_changed: true }],
+]) {
+  for (const mode of ['standard', 'advisory', 'ratchet', 'release']) {
+    test(`${mode} rejects a passing ratchet flag with ${name}`, () => {
+      const data = report(99, mode);
+      data.decision.ratchet = { ...ratchet(99), ...change };
+      assert.throws(() => enforceReport(data, '85', mode), /regression evidence/);
+    });
+  }
+}
+
+test('ratchet score improvement and release decisions pass', () => {
+  const data = report(99);
+  data.decision.ratchet = { ...ratchet(98), score_delta: 1 };
+  for (const mode of ['ratchet', 'release']) {
+    assert.deepEqual(enforceReport(data, '90', mode), { score: 99, floor: 90 });
+  }
+});
+
 test('input format is bounded and duplicate or malformed JSON fails', () => {
   for (const value of ['', '85.0', '1e2', '-1', '101', 'null', 'true', ' 85', '085', '$(exit 0)']) assert.throws(() => parseFloor(value));
   for (const value of ['0', '85', '90', '100']) assert.equal(parseFloor(value), Number(value));

@@ -40,6 +40,8 @@ example will follow successful 1.8.0 public consumer tests.
 The effective score requirement retains a stronger repository policy. Setting
 `fail-under: '0'` removes only the additional Action floor. Hard findings, failed
 scanners, unsuccessful auditor exits and ratchet failures still fail the step.
+A passing ratchet flag must also agree with its score, caps, findings and policy;
+the supported producer contract permits no score drop or policy change.
 An advisory audit cannot hide a failed policy decision.
 
 Each invocation creates a private directory below `RUNNER_TEMP`. Outputs are
@@ -60,7 +62,11 @@ x86-64 and Apple Silicon macOS. This repository does not publish auditor binarie
 Run `npm test` to exercise the preserved score, policy, freshness and installer
 contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI also
 runs the composite Action with the real public `v1.7.0` auditor on authored
-incomplete repositories at floors 85 and 90. This verifies installation and real
-failure propagation; successful 1.8.0 consumers remain a release gate.
+incomplete repositories at floors 85 and 90. A separate required matrix audits
+immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
+floors through a remotely pinned Action, then verifies that the candidate Action
+blocks a stronger policy and an unsafe workflow. Every audit retains a distinct
+fresh report. These are real v1.7.0 consumer checks; successful v1.8.0 consumers
+and an external consumer repository remain release gates.
 
 Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).

@@ -17,9 +17,11 @@ function aggregate(value) {
 }
 
 const success = { result: 'success', outputs: {} };
-test('both successful required jobs pass regardless of key order', () => {
-  assert.equal(aggregate(JSON.stringify({ contracts: success, 'public-audit': success })), true);
-  assert.equal(aggregate(JSON.stringify({ 'public-audit': success, contracts: success })), true);
+const lanes = ['contracts', 'public-audit', 'public-positive'];
+const successfulJobs = Object.fromEntries(lanes.map(lane => [lane, success]));
+test('all successful required jobs pass regardless of key order', () => {
+  assert.equal(aggregate(JSON.stringify(successfulJobs)), true);
+  assert.equal(aggregate(JSON.stringify(Object.fromEntries(Object.entries(successfulJobs).reverse()))), true);
 });
 
 for (const [name, value] of [
@@ -30,17 +32,22 @@ for (const [name, value] of [
   ['missing contracts', JSON.stringify({ 'public-audit': success })],
   ['missing public audit', JSON.stringify({ contracts: success })],
   ['renamed job', JSON.stringify({ contracts: success, audit: success })],
-  ['extra job', JSON.stringify({ contracts: success, 'public-audit': success, extra: success })],
+  ['extra job', JSON.stringify({ ...successfulJobs, extra: success })],
   ['successful array', JSON.stringify([success, success])],
 ]) {
   test(`required aggregate rejects ${name}`, () => assert.equal(aggregate(value), false));
 }
 
-for (const lane of ['contracts', 'public-audit']) {
+for (const lane of lanes) {
+  test(`required aggregate rejects missing ${lane}`, () => {
+    const jobs = { ...successfulJobs };
+    delete jobs[lane];
+    assert.equal(aggregate(JSON.stringify(jobs)), false);
+  });
   for (const value of [null, [], 'success', {}, { result: true }, { result: 0 },
     ...['failure', 'cancelled', 'skipped', 'pending', 'neutral', 'timed_out'].map(result => ({ result }))]) {
     test(`required aggregate rejects ${lane} outcome ${JSON.stringify(value)}`, () => {
-      const jobs = { contracts: success, 'public-audit': success, [lane]: value };
+      const jobs = { ...successfulJobs, [lane]: value };
       assert.equal(aggregate(JSON.stringify(jobs)), false);
     });
   }
@@ -49,22 +56,24 @@ for (const lane of ['contracts', 'public-audit']) {
 function assertWorkflowLanes(source) {
   // Keep this deliberately narrow: a workflow layout change requires review.
   const jobs = [...source.matchAll(/^  ([\w-]+):$/gm)].map(match => match[1]);
-  assert.deepEqual(jobs, ['push', 'pull_request', 'contracts', 'public-audit', 'required']);
-  assert.match(source, /^    needs: \[contracts, public-audit\]$/m);
+  assert.deepEqual(jobs, ['push', 'pull_request', ...lanes, 'required']);
+  assert.match(source, /^    needs: \[contracts, public-audit, public-positive\]$/m);
   assert.match(source, /^    if: always\(\)$/m);
-  assert.match(source, /^        floor: \['85', '90'\]$/m);
+  assert.equal([...source.matchAll(/^        floor: \['85', '90'\]$/gm)].length, 2);
 }
 
-test('workflow retains both dependency jobs and both public policy floors', () => {
+test('workflow retains every dependency and both floors in each public matrix', () => {
   assertWorkflowLanes(workflow);
 });
 
 test('workflow mutations removing a dependency, job or matrix floor are rejected', () => {
   for (const changed of [
-    workflow.replace('needs: [contracts, public-audit]', 'needs: [contracts]'),
-    workflow.replace('needs: [contracts, public-audit]', 'needs: [public-audit]'),
+    workflow.replace('needs: [contracts, public-audit, public-positive]', 'needs: [contracts]'),
+    workflow.replace('needs: [contracts, public-audit, public-positive]', 'needs: [public-audit]'),
     workflow.replace(/\n  contracts:\n[\s\S]*?(?=\n  public-audit:)/, ''),
-    workflow.replace(/\n  public-audit:\n[\s\S]*?(?=\n  required:)/, ''),
+    workflow.replace(/\n  public-audit:\n[\s\S]*?(?=\n  public-positive:)/, ''),
+    workflow.replace(/\n  public-positive:\n[\s\S]*?(?=\n  required:)/, ''),
+    workflow.replace('needs: [contracts, public-audit, public-positive]', 'needs: [contracts, public-audit]'),
     workflow.replace("floor: ['85', '90']", "floor: ['85']"),
     workflow.replace("floor: ['85', '90']", "floor: ['90']"),
     workflow.replace(/^    if: always\(\)\n/m, ''),
