@@ -67,9 +67,17 @@ case "$target" in
     command -v unzip >/dev/null || fail 'missing system tool: unzip'
     ;;
 esac
+download() {
+  # Downloads are idempotent GETs into private files. Curl truncates partial
+  # output before retrying; verification happens only after a complete transfer.
+  curl --disable --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
+    --connect-timeout 15 --max-time 60 \
+    --retry 3 --retry-all-errors --retry-delay 1 --retry-max-time 180 \
+    "$1" -o "$2"
+}
 fetch_tool() {
   local url="$1" output="$2" expected="$3"
-  curl --proto '=https' --tlsv1.2 -fsSL "$url" -o "$output"
+  download "$url" "$output"
   [[ "$(sha256 "$output")" == "$expected" ]] || fail 'verification tool checksum mismatch'
 }
 fetch_tool "https://github.com/cli/cli/releases/download/v2.100.0/$gh_archive" "$work/$gh_archive" "$gh_hash"
@@ -86,7 +94,7 @@ for name in "$asset" "$asset.sha256" "$asset.sigstore.bundle" "$asset.attestatio
   if [[ -n "$assets_dir" ]]; then
     cp "$assets_dir/$name" "$work/$name"
   else
-    curl --proto '=https' --tlsv1.2 -fsSL "$base/$name" -o "$work/$name"
+    download "$base/$name" "$work/$name"
   fi
 done
 identity="https://github.com/$repo/.github/workflows/release.yml@refs/tags/$tag"

@@ -62,6 +62,10 @@ shell fixture is not evidence that confinement or genuine tool execution passed.
 The bundled installer retains the producer's fixed signing, attestation,
 provenance, checksum and platform checks. Ordinary installation supports Linux
 x86-64 and Apple Silicon macOS. This repository does not publish auditor binaries.
+HTTPS downloads allow at most four attempts, with a 15-second connection timeout
+and a 60-second limit per attempt. Partial transfers are discarded before retry,
+and exhausted retries leave an existing installation unchanged. Verification
+failures stop installation without retrying or relaxing the trust checks.
 
 Run `npm test` to exercise the preserved score, policy, freshness and installer
 contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI also
