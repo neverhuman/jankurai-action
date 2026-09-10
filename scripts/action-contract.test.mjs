@@ -10,7 +10,7 @@ import { enforceReport, parseFloor, parseReport } from './action-gate.mjs';
 const script = fileURLToPath(new URL('./run-action-audit.sh', import.meta.url));
 const fingerprint = 'sha256:' + '0'.repeat(64);
 function report(score = 85, mode = 'standard') {
-  return { score, raw_score: score, scope: { mode: 'full' }, decision: {
+  return { score, raw_score: score, scope: { mode: 'full', paths: [] }, findings: [], decision: {
     status: mode === 'advisory' ? 'advisory' : 'pass', minimum_score: 85,
     passed: true, hard_findings: 0, soft_findings: 0,
   }};
@@ -82,6 +82,42 @@ test('input format is bounded and duplicate or malformed JSON fails', () => {
   assert.throws(() => parseReport('{"decision": {"passed":false,"pass\\u0065d":true}}'), /duplicate/);
   assert.throws(() => parseReport('{"score": 99'));
   assert.deepEqual(parseReport(JSON.stringify(report())), report());
+});
+
+for (const mode of ['standard', 'advisory', 'ratchet', 'release']) {
+  for (const [name, findings] of [
+    ['critical', [{ severity: 'critical', hardness: 'hard' }]],
+    ['high declared soft', [{ severity: 'high', hardness: 'soft' }]],
+    ['medium hard', [{ severity: 'medium', hardness: 'hard' }]],
+    ['historical high', [{ severity: 'high' }]],
+    ['unknown severity', [{ severity: 'unknown', hardness: 'soft' }]],
+    ['unknown hardness', [{ severity: 'medium', hardness: 'advisory' }]],
+    ['null finding', [null]],
+    ['missing array', undefined],
+    ['object array', {}],
+  ]) {
+    test(`${mode} rejects a passing declaration with ${name} findings`, () => {
+      const data = { ...report(99, mode), findings };
+      data.decision.ratchet = ratchet(99);
+      data.decision.soft_findings = Array.isArray(findings) ? findings.length : 0;
+      assert.throws(() => enforceReport(data, '85', mode), /finding/);
+    });
+  }
+}
+
+test('complete advisory findings remain readable and counts must agree', () => {
+  const data = report(99);
+  data.findings = [{ severity: 'medium', hardness: 'soft' }, { severity: 'low' }];
+  data.decision.soft_findings = 2;
+  assert.deepEqual(enforceReport(data, '90', 'standard'), { score: 99, floor: 90 });
+  data.decision.soft_findings = 0;
+  assert.throws(() => enforceReport(data, '90', 'standard'), /finding counts/);
+});
+
+test('full scope cannot carry selected, missing, or malformed paths', () => {
+  for (const paths of [['src/auth.rs'], undefined, null, '']) {
+    assert.throws(() => enforceReport({ ...report(), scope: { mode: 'full', paths } }, '85', 'standard'), /scope paths/);
+  }
 });
 
 function runAudit(t, { data = report(99), outcome = 0, behavior = 'report', floor = '85', mode = 'standard', plan = '', platform = 'Linux' } = {}) {
@@ -166,6 +202,16 @@ test('actual shell rejects contradictory policy floors', t => {
   const run = runAudit(t, { data: { ...report(89), policy: { minimum_score: 90 } } });
   assert.notEqual(run.result.status, 0);
   assert.match(run.result.stderr, /policy and decision score floors disagree/);
+});
+
+test('actual shell rejects forged zero-hard-findings reports', t => {
+  const data = report(99);
+  data.findings = [{ severity: 'high', hardness: 'hard' }];
+  data.decision.soft_findings = 1;
+  const run = runAudit(t, { data });
+  assert.notEqual(run.result.status, 0);
+  assert.match(run.result.stderr, /blocking findings/);
+  assert.equal(JSON.parse(fs.readFileSync(run.stale)).score, 99);
 });
 
 test('ordinary audit remains nonexecuting when no plan is supplied', t => {

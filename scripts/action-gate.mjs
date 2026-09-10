@@ -76,7 +76,8 @@ export function enforceReport(report, requestedFloor, mode) {
   const requested = parseFloor(requestedFloor);
   requireValue(object(report) && integer(report.score, 0, 100), 'report score must be an integer from 0 to 100');
   requireValue(integer(report.raw_score, 0, 100), 'invalid raw score');
-  requireValue(object(report.scope) && report.scope.mode === 'full', 'gate requires a full audit');
+  requireValue(object(report.scope) && report.scope.mode === 'full'
+    && Array.isArray(report.scope.paths) && report.scope.paths.length === 0, 'gate requires a full audit with empty scope paths');
   const decision = report.decision;
   requireValue(object(decision), 'missing audit decision');
   requireValue(integer(decision.minimum_score, 0, 100), 'invalid policy score floor');
@@ -90,6 +91,15 @@ export function enforceReport(report, requestedFloor, mode) {
   requireValue(['pass', 'fail', 'advisory'].includes(decision.status), 'invalid decision status');
   requireValue((mode === 'advisory') === (decision.status === 'advisory'), 'decision status contradicts requested mode');
   requireValue(decision.passed && decision.status !== 'fail' && decision.hard_findings === 0, 'audit policy did not pass');
+  requireValue(Array.isArray(report.findings), 'report findings must be an array');
+  for (const finding of report.findings) {
+    requireValue(object(finding) && ['critical', 'high', 'medium', 'low', 'info'].includes(finding.severity), 'invalid finding severity');
+    if (Object.hasOwn(finding, 'hardness')) {
+      requireValue(['hard', 'soft'].includes(finding.hardness), 'invalid finding hardness');
+    }
+    requireValue(finding.hardness !== 'hard' && !['critical', 'high'].includes(finding.severity), 'passing decision contradicts blocking findings');
+  }
+  requireValue(decision.soft_findings === report.findings.length, 'passing decision contradicts finding counts');
   if (decision.ratchet != null) {
     const ratchet = decision.ratchet;
     requireValue(object(ratchet) && typeof ratchet.passed === 'boolean', 'invalid ratchet decision');
