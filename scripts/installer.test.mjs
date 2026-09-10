@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:https';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -73,8 +74,108 @@ function fixture(t, platform = 'linux') {
   }
   const run = (...args) => spawnSync('bash', [testInstaller, '--tag', 'v1.7.0', ...args], { env, encoding: 'utf8' });
   const install = (...args) => run('--verify-only', ...args);
-  return { root, asset, payload, provenance, env, pack, install, run, ghArchive, cosignAsset };
+  const runAsync = (...args) => new Promise((resolve, reject) => {
+    const child = spawn('bash', [testInstaller, '--tag', 'v1.7.0', ...args], { env });
+    let stdout = '', stderr = '';
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('close', status => resolve({ status, stdout, stderr }));
+  });
+  return { root, asset, payload, provenance, env, pack, install, run, runAsync, tool, ghArchive, cosignAsset };
 }
+
+// Exercise the actual curl transfer/retry behavior against local HTTPS. Only
+// this fixture rewrites download destinations and trusts its ephemeral test CA.
+async function httpsDownloads(t, f, respond) {
+  const curl = spawnSync('sh', ['-c', 'command -v curl'], { encoding: 'utf8' }).stdout.trim();
+  const key = path.join(f.root, 'key.pem'), cert = path.join(f.root, 'cert.pem');
+  const generated = spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+    '-keyout', key, '-out', cert, '-days', '1', '-subj', '/CN=localhost',
+    '-addext', 'subjectAltName=IP:127.0.0.1'], { encoding: 'utf8' });
+  assert.equal(generated.status, 0, generated.stderr);
+  const counts = new Map();
+  const server = createServer({ key: fs.readFileSync(key), cert: fs.readFileSync(cert) }, (req, res) => {
+    if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
+    const name = path.basename(new URL(req.url, 'https://localhost').pathname);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+    const bytes = fs.readFileSync(path.join(f.root, name));
+    if (!respond(name, counts.get(name), req, res, bytes)) res.end(bytes);
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  t.after(() => new Promise(resolve => {
+    server.closeAllConnections();
+    server.close(resolve);
+  }));
+  const base = `https://127.0.0.1:${server.address().port}`;
+  f.tool('curl', `const {spawnSync}=require('node:child_process');
+    const args=process.argv.slice(2);
+    const index=args.findIndex(arg=>arg.startsWith('https:'));
+    args[index]=${JSON.stringify(base)}+'/'+args[index].split('/').at(-1);
+    args.push('--cacert',${JSON.stringify(cert)},'--noproxy','127.0.0.1');
+    const result=spawnSync(${JSON.stringify(curl)},args,{stdio:'inherit'});
+    process.exit(result.status ?? 1);`);
+  // A caller's curl configuration cannot change the download count or bounds.
+  fs.writeFileSync(path.join(f.root, '.curlrc'), 'request = "POST"\nretry = 20\n');
+  f.env.CURL_HOME = f.root;
+  f.env.TMPDIR = path.join(f.root, 'download-tmp');
+  fs.mkdirSync(f.env.TMPDIR);
+  return counts;
+}
+
+test('actual HTTPS retries reset and truncated downloads before verified installation', { timeout: 30000 }, async t => {
+  const f = fixture(t); f.pack();
+  const counts = await httpsDownloads(t, f, (name, count, req, res, bytes) => {
+    if (name !== f.ghArchive) return false;
+    if (count === 1) { req.socket.destroy(); return true; }
+    if (count === 2) {
+      res.writeHead(200, { 'Content-Length': bytes.length });
+      res.write(bytes.subarray(0, Math.floor(bytes.length / 2)), () => res.destroy());
+      return true;
+    }
+    return false;
+  });
+  const dir = path.join(f.root, 'installed');
+  const result = await f.runAsync('--install-dir', dir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /curl: \((18|52|56)\)/);
+  assert.equal(counts.get(f.ghArchive), 3);
+  assert.equal(fs.readFileSync(path.join(dir, 'jankurai'), 'utf8'), f.payload.jankurai);
+  assert.deepEqual(fs.readdirSync(f.env.TMPDIR), []);
+});
+
+test('actual HTTPS exhaustion preserves the installed binary and removes partial files', { timeout: 30000 }, async t => {
+  const f = fixture(t); f.pack();
+  const counts = await httpsDownloads(t, f, (_name, _count, req) => {
+    req.socket.destroy(); return true;
+  });
+  const dir = path.join(f.root, 'installed'); fs.mkdirSync(dir);
+  const installed = path.join(dir, 'jankurai');
+  fs.writeFileSync(installed, 'preserved binary', { mode: 0o750 });
+  const result = await f.runAsync('--install-dir', dir);
+  assert.notEqual(result.status, 0);
+  assert.equal(counts.get(f.ghArchive), 4);
+  assert.equal(counts.size, 1);
+  assert.equal(fs.readFileSync(installed, 'utf8'), 'preserved binary');
+  assert.equal(fs.statSync(installed).mode & 0o777, 0o750);
+  assert.deepEqual(fs.readdirSync(dir), ['jankurai']);
+  assert.deepEqual(fs.readdirSync(f.env.TMPDIR), []);
+});
+
+test('successful HTTPS with tampered verifier bytes fails without retrying verification', { timeout: 30000 }, async t => {
+  const f = fixture(t); f.pack();
+  fs.appendFileSync(path.join(f.root, f.cosignAsset), 'tampered');
+  const counts = await httpsDownloads(t, f, () => false);
+  const result = await f.runAsync('--verify-only');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /verification tool checksum mismatch/);
+  assert.equal(counts.get(f.cosignAsset), 1);
+  assert.equal(counts.has(f.asset), false);
+  assert.deepEqual(fs.readdirSync(f.env.TMPDIR), []);
+});
 test('valid asset requires both exact workflow verification identities', t => {
   const f = fixture(t); f.pack(); const result = f.install();
   assert.equal(result.status, 0, result.stderr);
