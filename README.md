@@ -44,6 +44,9 @@ scanners, unsuccessful auditor exits and ratchet failures still fail the step.
 A passing ratchet flag must also agree with its score, caps, findings and policy;
 the supported producer contract permits no score drop or policy change.
 An advisory audit cannot hide a failed policy decision.
+The report must describe the full repository, and its findings must agree with
+the declared counts and passing decision. Missing or contradictory evidence
+fails the Action.
 
 Each invocation creates a private directory below `RUNNER_TEMP`. Outputs are
 `report-json`, `report-md`, and `report-directory`. Upload the directory with

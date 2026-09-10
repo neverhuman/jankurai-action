@@ -96,6 +96,13 @@ jobs:
           release-tag: v1.7.0
           path: consumer
           fail-under: ${{ matrix.floor }}
+      - name: Pass the same real audit with the candidate Action
+        id: candidate
+        uses: ./
+        with:
+          release-tag: v1.7.0
+          path: consumer
+          fail-under: ${{ matrix.floor }}
       - name: Raise the consumer policy above its measured score
         run: |
           test "$(git -C consumer rev-parse HEAD)" = e831795178a3fb1d5842122625978d92e41d5af5
@@ -137,26 +144,33 @@ jobs:
         if: always()
         env:
           POSITIVE_OUTCOME: ${{ steps.positive.outcome }}
+          CANDIDATE_OUTCOME: ${{ steps.candidate.outcome }}
           STRONGER_OUTCOME: ${{ steps.stronger.outcome }}
           REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
           POSITIVE_JSON: ${{ steps.positive.outputs.report-json }}
+          CANDIDATE_JSON: ${{ steps.candidate.outputs.report-json }}
           STRONGER_JSON: ${{ steps.stronger.outputs.report-json }}
           REGRESSION_JSON: ${{ steps.regression.outputs.report-json }}
           FLOOR: ${{ matrix.floor }}
         run: |
           test "$POSITIVE_OUTCOME" = success
+          test "$CANDIDATE_OUTCOME" = success
           test "$STRONGER_OUTCOME" = failure
           test "$REGRESSION_OUTCOME" = failure
           test "$POSITIVE_JSON" != "$STRONGER_JSON"
           test "$POSITIVE_JSON" != "$REGRESSION_JSON"
           test "$STRONGER_JSON" != "$REGRESSION_JSON"
-          for report in "$POSITIVE_JSON" "$STRONGER_JSON" "$REGRESSION_JSON"; do
+          test "$CANDIDATE_JSON" != "$POSITIVE_JSON"
+          test "$CANDIDATE_JSON" != "$STRONGER_JSON"
+          test "$CANDIDATE_JSON" != "$REGRESSION_JSON"
+          for report in "$POSITIVE_JSON" "$CANDIDATE_JSON" "$STRONGER_JSON" "$REGRESSION_JSON"; do
             case "$report" in "$RUNNER_TEMP"/jankurai-action.*/repo-score.json) ;; *) exit 1 ;; esac
             test -f "$report"
             test ! -L "$report"
             jq -e '.scope.mode == "full"' "$report"
           done
           jq -e --argjson floor "$FLOOR" '.score >= $floor and .decision.minimum_score == 85 and .decision.passed == true and .decision.hard_findings == 0' "$POSITIVE_JSON"
+          jq -e --argjson floor "$FLOOR" --slurpfile prior "$POSITIVE_JSON" '.score == $prior[0].score and .score >= $floor and .decision.minimum_score == 85 and .decision.passed == true and .decision.hard_findings == 0' "$CANDIDATE_JSON"
           jq -e '.score < 100 and .decision.minimum_score == 100 and .decision.passed == false' "$STRONGER_JSON"
           jq -e '.decision.minimum_score == 85 and .decision.passed == false and .decision.hard_findings > 0 and any(.findings[]; .path == ".github/workflows/release-preview.yml" and .hardness == "hard")' "$REGRESSION_JSON"
           "$HOME/.local/bin/jankurai" --version | tee "$RUNNER_TEMP/public-auditor-version.txt"
@@ -167,6 +181,7 @@ jobs:
           name: real-public-positive-and-regressions-${{ matrix.floor }}
           path: |
             ${{ steps.positive.outputs.report-directory }}
+            ${{ steps.candidate.outputs.report-directory }}
             ${{ steps.stronger.outputs.report-directory }}
             ${{ steps.regression.outputs.report-directory }}
             ${{ runner.temp }}/public-auditor-*.txt
