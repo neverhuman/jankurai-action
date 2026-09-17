@@ -27,7 +27,7 @@ inputs:
     required: false
     default: "."
   plan:
-    description: "Optional proof plan for supervised ci run. Requires the qualified Linux auditor, pinned bubblewrap and delegated cgroup v2; admission fails when unavailable. Empty uses a nonexecuting audit."
+    description: "Reserved for separately qualified supervised execution. Every nonempty value is rejected; leave empty for a repository audit."
     required: false
     default: ""
 

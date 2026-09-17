@@ -35,8 +35,8 @@ example will follow successful 1.8.0 public consumer tests.
 | `path` | `.` | Repository to audit |
 | `mode` | `standard` | `standard`, `advisory`, `ratchet`, or `release` |
 | `fail-under` | `85` | Additional score floor; use `90` for a stronger requirement |
-| `baseline` | `agent/baselines/main.repo-score.json` | Accepted baseline for ratchet/release modes and supervised runs |
-| `plan` | empty | Optional reviewed proof-plan path; selects supervised `ci run` |
+| `baseline` | `agent/baselines/main.repo-score.json` | Accepted baseline for ratchet/release modes |
+| `plan` | empty | Reserved; all nonempty values are rejected |
 
 The effective score requirement retains a stronger repository policy. Setting
 `fail-under: '0'` removes only the additional Action floor. Hard findings, failed
@@ -53,11 +53,9 @@ Each invocation creates a private directory below `RUNNER_TEMP`. Outputs are
 `if: always()` to retain reports from blocked audits. Failed admission may leave
 the directory without a completed report; an older report is never substituted.
 
-Supplying `plan` selects `jankurai ci run` with literal argument arrays and the
-configured baseline/mode. This path is Linux-only. The qualified auditor must
-admit pinned bubblewrap confinement and delegated cgroup v2 resource controls;
-missing controls fail admission. There is no host-execution fallback. A passing
-shell fixture is not evidence that confinement or genuine tool execution passed.
+Supervised command execution is unavailable in this release. Every nonempty
+`plan` value fails clearly before the auditor is launched, on both supported
+platforms. Leave `plan` empty to run an ordinary repository audit.
 
 The bundled installer retains the producer's fixed signing, attestation,
 provenance, checksum and platform checks. Ordinary installation supports Linux

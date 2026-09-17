@@ -221,37 +221,19 @@ test('ordinary audit remains nonexecuting when no plan is supplied', t => {
   assert.ok(!run.args.includes('--plan'));
 });
 
-test('supervised plan and paths stay literal arguments', t => {
-  const plan = 'plans/with spaces $(touch escaped);.json';
-  const run = runAudit(t, { plan });
-  assert.equal(run.result.status, 0, run.result.stderr);
-  assert.deepEqual(run.args.slice(0, 3), ['ci', 'run', run.root]);
-  assert.equal(run.args[run.args.indexOf('--plan') + 1], plan);
-  assert.equal(run.args[run.args.indexOf('--baseline') + 1], path.join(run.root, 'baseline.json'));
-  assert.equal(run.args[run.args.indexOf('--mode') + 1], 'standard');
-  assert.ok(!run.args.includes('--fail-under'));
-  assert.match(run.outputs, /report-directory=/);
-});
-
-test('supervised execution fails before launching an auditor on unsupported platforms', t => {
-  const run = runAudit(t, { plan: 'plan.json', platform: 'Darwin' });
-  assert.notEqual(run.result.status, 0);
-  assert.equal(run.args, null);
-  assert.match(run.result.stderr, /qualified Linux/);
-});
-
-test('supervised admission or execution failure is final even with a passing report', t => {
-  const run = runAudit(t, { plan: 'plan.json', outcome: 73 });
-  assert.equal(run.result.status, 73);
-  assert.deepEqual(run.args.slice(0, 2), ['ci', 'run']);
-});
-
-test('supervised mode retains stronger policy and ratchet decisions', t => {
-  assert.notEqual(runAudit(t, { plan: 'plan.json', floor: '0', data: report(84) }).result.status, 0);
-  const missingRatchet = runAudit(t, { plan: 'plan.json', mode: 'ratchet' });
-  assert.notEqual(missingRatchet.result.status, 0);
-  const valid = runAudit(t, { plan: 'plan.json', mode: 'ratchet', data: {
-    ...report(99), decision: { ...report(99).decision, ratchet: ratchet(99) },
-  } });
-  assert.equal(valid.result.status, 0, valid.result.stderr);
-});
+for (const platform of ['Linux', 'Darwin']) {
+  for (const mode of ['standard', 'advisory', 'ratchet', 'release']) {
+    test(`nonempty plans are refused before execution on ${platform} in ${mode} mode`, t => {
+      for (const plan of ['plan.json', ' ', 'plans/with spaces $(touch escaped);.json']) {
+        const run = runAudit(t, { plan, platform, mode, outcome: 73 });
+        assert.equal(run.result.status, 1);
+        assert.equal(run.args, null, 'the auditor must never be launched');
+        assert.match(run.result.stderr, /supervised execution is unavailable in this release/);
+        assert.match(run.outputs, /report-directory=/);
+        const directory = run.outputs.match(/report-directory=(.+)/)[1];
+        assert.deepEqual(fs.readdirSync(directory), []);
+        assert.equal(JSON.parse(fs.readFileSync(run.stale)).score, 99);
+      }
+    });
+  }
+}

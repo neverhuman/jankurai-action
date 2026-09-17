@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Arguments remain arrays/quoted strings. The auditor owns supervised execution.
+# Ordinary audits do not execute repository commands.
 bin="$1"
 audit_path="$2"
 mode="$3"
@@ -17,21 +17,14 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then
   printf 'report-json=%s\nreport-md=%s\nreport-directory=%s\n' "$report_dir/repo-score.json" "$report_dir/repo-score.md" "$report_dir" >> "$GITHUB_OUTPUT"
 fi
 if [ -n "$plan" ]; then
-  if [ "$(uname -s)" != Linux ]; then
-    echo 'supervised ci run requires the qualified Linux execution environment' >&2
-    exit 1
-  fi
-  # The qualified producer performs confinement/resource admission. A failed
-  # admission is final; there is no fallback to audit or direct tool execution.
-  args=(ci run "$audit_path" --plan "$plan" --baseline "$baseline" --mode "$mode"
-    --json "$report_dir/repo-score.json" --md "$report_dir/repo-score.md")
-else
-  args=(audit "$audit_path" --full --mode "$mode" --no-score-history
-    --json "$report_dir/repo-score.json" --md "$report_dir/repo-score.md"
-    --sarif "$report_dir/jankurai.sarif" --github-step-summary "$report_dir/summary.md"
-    --repair-queue-jsonl "$report_dir/repair-queue.jsonl")
-  if [ "$mode" = ratchet ] || [ "$mode" = release ]; then args+=(--baseline "$baseline"); fi
+  echo 'supervised execution is unavailable in this release; leave plan empty for a repository audit' >&2
+  exit 1
 fi
+args=(audit "$audit_path" --full --mode "$mode" --no-score-history
+  --json "$report_dir/repo-score.json" --md "$report_dir/repo-score.md"
+  --sarif "$report_dir/jankurai.sarif" --github-step-summary "$report_dir/summary.md"
+  --repair-queue-jsonl "$report_dir/repair-queue.jsonl")
+if [ "$mode" = ratchet ] || [ "$mode" = release ]; then args+=(--baseline "$baseline"); fi
 # The additional Action floor never replaces a stronger repository policy.
 audit_status=0
 "$bin" "${args[@]}" || audit_status=$?
