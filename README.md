@@ -4,15 +4,15 @@ Audit repository quality in GitHub Actions. The default audit reads repository
 inputs and produces a fresh report. It does not execute repository commands.
 
 **1.8.0 release candidate:** the default auditor pin is `v1.8.0`. That release and
-this Action's Marketplace listing are pending qualification. Until then, use a
-reviewed Action commit with `release-tag: v1.7.0` for the existing public auditor.
-The supervised `plan` option requires the forthcoming qualified Linux producer.
+this Action's Marketplace listing are pending qualification. The example below
+uses the accepted Action revision with `release-tag: v1.7.0` for the existing
+public bootstrap auditor. Supervised execution is unavailable; leave `plan` empty.
 
 ```yaml
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@45375ae8a9c0aca859d4d0b63eacdeb6ff8a6432
+- uses: neverhuman/jankurai-action@4a45526ac904315f96e6bbebda4e088268023afa
   id: quality
   with:
     release-tag: v1.7.0
@@ -24,10 +24,13 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins the reviewed consumer and ratchet repair. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34412260881)
-passed all 126 contract tests and real public-auditor positive, stronger-policy
-and regression checks at both floors. A stable `v1.8.0`
-example will follow successful 1.8.0 public consumer tests.
+This example pins the accepted Action revision with report consistency checks,
+bounded installer downloads, and rejection of every nonempty `plan`. Its
+[resulting-main CI](https://github.com/neverhuman/jankurai-action/actions/runs/35258734458)
+passed all 172 contract and installer tests and real public `v1.7.0` positive,
+stronger-policy, and regression checks at floors 85 and 90. This is bootstrap
+evidence; a `v1.8.0` example will follow successful public v1.8.0 consumer
+qualification.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
@@ -70,9 +73,10 @@ contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI als
 runs the composite Action with the real public `v1.7.0` auditor on authored
 incomplete repositories at floors 85 and 90. A separate required matrix audits
 immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
-floors through a remotely pinned Action, then verifies that the candidate Action
-blocks a stronger policy and an unsafe workflow. Every audit retains a distinct
-fresh report. These are real v1.7.0 consumer checks; successful v1.8.0 consumers
-and an external consumer repository remain release gates.
+floors through a remotely pinned control Action and the candidate Action, then
+verifies that the candidate blocks a stronger policy and an unsafe workflow.
+Every audit retains a distinct fresh report. These are real v1.7.0 consumer
+checks; successful v1.8.0 consumers and an external consumer repository remain
+release gates.
 
 Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).
