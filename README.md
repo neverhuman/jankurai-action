@@ -3,16 +3,14 @@
 Audit repository quality in GitHub Actions. The default audit reads repository
 inputs and produces a fresh report. It does not execute repository commands.
 
-**1.8.0 release candidate:** the default auditor pin is `v1.8.0`. That release and
-this Action's Marketplace listing are pending qualification. Until then, use a
-reviewed Action commit with `release-tag: v1.7.0` for the existing public auditor.
-The supervised `plan` option requires the forthcoming qualified Linux producer.
+Pin this Action by commit and install the public auditor with `release-tag: v1.7.0`.
+Leave `plan` empty. Supervised execution is unavailable.
 
 ```yaml
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@45375ae8a9c0aca859d4d0b63eacdeb6ff8a6432
+- uses: neverhuman/jankurai-action@4a45526ac904315f96e6bbebda4e088268023afa
   id: quality
   with:
     release-tag: v1.7.0
@@ -24,14 +22,15 @@ The supervised `plan` option requires the forthcoming qualified Linux producer.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins the reviewed consumer and ratchet repair. Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/34412260881)
-passed all 126 contract tests and real public-auditor positive, stronger-policy
-and regression checks at both floors. A stable `v1.8.0`
-example will follow successful 1.8.0 public consumer tests.
+This example pins the current `main` Action (`4a45526`) with report consistency
+checks, bounded installer downloads, and rejection of every nonempty `plan`.
+Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/35258734458)
+passed contract and installer tests and real public `v1.7.0` positive,
+stronger-policy, and regression checks at floors 85 and 90.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `release-tag` | `v1.8.0` | Signed public auditor release from `neverhuman/jankurai` |
+| `release-tag` | `v1.7.0` | Signed public auditor release from `neverhuman/jankurai` |
 | `path` | `.` | Repository to audit |
 | `mode` | `standard` | `standard`, `advisory`, `ratchet`, or `release` |
 | `fail-under` | `85` | Additional score floor; use `90` for a stronger requirement |
@@ -53,9 +52,8 @@ Each invocation creates a private directory below `RUNNER_TEMP`. Outputs are
 `if: always()` to retain reports from blocked audits. Failed admission may leave
 the directory without a completed report; an older report is never substituted.
 
-Supervised command execution is unavailable in this release. Every nonempty
-`plan` value fails clearly before the auditor is launched, on both supported
-platforms. Leave `plan` empty to run an ordinary repository audit.
+Supervised command execution is unavailable. Every nonempty `plan` value fails
+clearly before the auditor is launched, on both supported platforms.
 
 The bundled installer retains the producer's fixed signing, attestation,
 provenance, checksum and platform checks. Ordinary installation supports Linux
@@ -70,9 +68,8 @@ contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI als
 runs the composite Action with the real public `v1.7.0` auditor on authored
 incomplete repositories at floors 85 and 90. A separate required matrix audits
 immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
-floors through a remotely pinned Action, then verifies that the candidate Action
-blocks a stronger policy and an unsafe workflow. Every audit retains a distinct
-fresh report. These are real v1.7.0 consumer checks; successful v1.8.0 consumers
-and an external consumer repository remain release gates.
+floors through a remotely pinned control Action and the candidate Action, then
+verifies that the candidate blocks a stronger policy and an unsafe workflow.
+Every audit retains a distinct fresh report.
 
 Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).
