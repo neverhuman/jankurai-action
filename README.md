@@ -3,17 +3,17 @@
 Audit repository quality in GitHub Actions. The default audit reads repository
 inputs and produces a fresh report. It does not execute repository commands.
 
-Pin this Action by commit and install the public auditor with `release-tag: v1.7.0`.
+Pin this Action by commit and install the public auditor with `release-tag: v1.7.1`.
 Leave `plan` empty. Supervised execution is unavailable.
 
 ```yaml
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@4a45526ac904315f96e6bbebda4e088268023afa
+- uses: neverhuman/jankurai-action@243874148364c1251bfaa92debdef0915ac83f2d
   id: quality
   with:
-    release-tag: v1.7.0
+    release-tag: v1.7.1
     fail-under: '85'
 - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
   if: always()
@@ -22,15 +22,17 @@ Leave `plan` empty. Supervised execution is unavailable.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins the current `main` Action (`4a45526`) with report consistency
-checks, bounded installer downloads, and rejection of every nonempty `plan`.
+This example pins `2438741` and passes `release-tag: v1.7.1`. That commit has
+report consistency checks, bounded installer downloads, and rejection of every
+nonempty `plan`. After this change, `main` defaults `release-tag` to `v1.7.1`.
 Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/35258734458)
 passed contract and installer tests and real public `v1.7.0` positive,
-stronger-policy, and regression checks at floors 85 and 90.
+stronger-policy, and regression checks at floors 85 and 90. This pull request
+repeats those public audits against `v1.7.1`.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `release-tag` | `v1.7.0` | Signed public auditor release from `neverhuman/jankurai` |
+| `release-tag` | `v1.7.1` | Signed public auditor release from `neverhuman/jankurai` |
 | `path` | `.` | Repository to audit |
 | `mode` | `standard` | `standard`, `advisory`, `ratchet`, or `release` |
 | `fail-under` | `85` | Additional score floor; use `90` for a stronger requirement |
@@ -65,7 +67,7 @@ failures stop installation without retrying or relaxing the trust checks.
 
 Run `npm test` to exercise the preserved score, policy, freshness and installer
 contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI also
-runs the composite Action with the real public `v1.7.0` auditor on authored
+runs the composite Action with the real public `v1.7.1` auditor on authored
 incomplete repositories at floors 85 and 90. A separate required matrix audits
 immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
 floors through a remotely pinned control Action and the candidate Action, then
