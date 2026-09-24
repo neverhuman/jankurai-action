@@ -46,7 +46,7 @@ jobs:
         continue-on-error: true
         uses: ./
         with:
-          release-tag: v1.7.0
+          release-tag: v1.7.1
           path: ${{ steps.fixture.outputs.path }}
           fail-under: ${{ matrix.floor }}
       - name: Verify the real outcome and fresh report
@@ -93,14 +93,14 @@ jobs:
         id: positive
         uses: neverhuman/jankurai-action@a0f87d5be2e6534afe0fc0e65b27b2fb3734d7de
         with:
-          release-tag: v1.7.0
+          release-tag: v1.7.1
           path: consumer
           fail-under: ${{ matrix.floor }}
       - name: Pass the same real audit with the candidate Action
         id: candidate
         uses: ./
         with:
-          release-tag: v1.7.0
+          release-tag: v1.7.1
           path: consumer
           fail-under: ${{ matrix.floor }}
       - name: Raise the consumer policy above its measured score
@@ -113,7 +113,7 @@ jobs:
         continue-on-error: true
         uses: ./
         with:
-          release-tag: v1.7.0
+          release-tag: v1.7.1
           path: consumer
           fail-under: ${{ matrix.floor }}
       - name: Restore the policy and introduce a workflow regression
@@ -137,7 +137,7 @@ jobs:
         continue-on-error: true
         uses: ./
         with:
-          release-tag: v1.7.0
+          release-tag: v1.7.1
           path: consumer
           fail-under: ${{ matrix.floor }}
       - name: Verify all real decisions and distinct fresh reports
