@@ -9,6 +9,13 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const installer = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'jankurai-installer.sh');
+
+test('unpublished v1.8.0 is rejected before any download', () => {
+  const result = spawnSync('bash', [installer, '--tag', 'v1.8.0', '--print-asset-name'], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /v1\.8\.0 is not a published Jankurai release/);
+  assert.equal(result.stdout, '');
+});
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 function fixture(t, platform = 'linux') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'release-ci-test-')), tools = path.join(root, 'tools');
