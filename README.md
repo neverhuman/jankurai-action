@@ -10,7 +10,7 @@ Leave `plan` empty. Supervised execution is unavailable.
 - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   with:
     persist-credentials: false
-- uses: neverhuman/jankurai-action@243874148364c1251bfaa92debdef0915ac83f2d
+- uses: neverhuman/jankurai-action@6cd9cbfdd503431ea33278a7444ff8f1772f3115
   id: quality
   with:
     release-tag: v1.7.1
@@ -22,13 +22,11 @@ Leave `plan` empty. Supervised execution is unavailable.
     path: ${{ steps.quality.outputs.report-directory }}
 ```
 
-This example pins `2438741` and passes `release-tag: v1.7.1`. That commit has
-report consistency checks, bounded installer downloads, and rejection of every
-nonempty `plan`. After this change, `main` defaults `release-tag` to `v1.7.1`.
-Its [hosted CI](https://github.com/neverhuman/jankurai-action/actions/runs/35258734458)
-passed contract and installer tests and real public `v1.7.0` positive,
-stronger-policy, and regression checks at floors 85 and 90. This pull request
-repeats those public audits against `v1.7.1`.
+This example pins `6cd9cbf`, the commit whose default `release-tag` is `v1.7.1`.
+It also passes that tag explicitly. That commit rejects every nonempty `plan`.
+[Hosted CI on that commit](https://github.com/neverhuman/jankurai-action/actions/runs/36073107372)
+passed contract tests and real public `v1.7.1` positive, stronger-policy, and
+regression checks at floors 85 and 90.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
