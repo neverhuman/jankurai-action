@@ -7,6 +7,7 @@ Preserve the Action input/output contract and the installer's fixed production
 trust identities. Ordinary audits do not execute repository commands. Supervised
 execution must fail closed without the qualified Linux auditor environment.
 
-Run `npm test` and validate `.github/workflows/ci.yml` with actionlint before handoff.
+Run `npm test` before handoff. This repository has no GitHub Actions workflows;
+GitHub is a publishing mirror and CI runs on our own hosts.
 Do not publish a stable Action release before its public auditor release and real
 consumer qualification pass.

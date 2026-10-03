@@ -64,12 +64,11 @@ and exhausted retries leave an existing installation unchanged. Verification
 failures stop installation without retrying or relaxing the trust checks.
 
 Run `npm test` to exercise the preserved score, policy, freshness and installer
-contracts. Controlled verifier/auditor fixtures are labeled in the tests. CI also
-runs the composite Action with the real public `v1.7.1` auditor on authored
-incomplete repositories at floors 85 and 90. A separate required matrix audits
-immutable public Core commit `e831795178a3fb1d5842122625978d92e41d5af5` at both
-floors through a remotely pinned control Action and the candidate Action, then
-verifies that the candidate blocks a stronger policy and an unsafe workflow.
-Every audit retains a distinct fresh report.
+contracts. Controlled verifier/auditor fixtures are labeled in the tests.
+
+This repository's own CI no longer runs on GitHub Actions. GitHub is a
+publishing mirror; CI runs on the forge and our own hosts, and releases are
+built and signed on our servers. A separate change introduces key-based release
+signing. The Action itself still runs in consumers' GitHub workflows.
 
 Report vulnerabilities privately through the [producer security advisories](https://github.com/neverhuman/jankurai/security/advisories/new).
