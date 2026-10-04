@@ -64,8 +64,13 @@ and a 60-second limit per attempt. Partial transfers are discarded before retry,
 and exhausted retries leave an existing installation unchanged. Verification
 failures stop installation without retrying or relaxing the trust checks.
 
-Run `npm test` to exercise the preserved score, policy, freshness and installer
-contracts. Controlled verifier/auditor fixtures are labeled in the tests.
+Run `bash scripts/ci-local.sh required` to exercise the preserved score, policy,
+freshness and installer contracts. It installs from the committed lockfile with
+`npm ci --ignore-scripts --no-audit --no-fund` and then runs `npm test`.
+The runner also accepts `fast` (tests against an existing install), `security`
+(lockfile trust checks), `audit` (`npm audit`) and `gates` (all lanes); it
+defaults to `required` and exits 2 on an unknown lane. Controlled
+verifier/auditor fixtures are labeled in the tests.
 
 This repository's own CI no longer runs on GitHub Actions. GitHub is a
 publishing mirror; CI runs on the forge and our own hosts, and releases are

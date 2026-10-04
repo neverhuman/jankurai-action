@@ -1,0 +1,45 @@
+{
+  "workspace": "jankurai-action",
+  "tests": {
+    ".": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "required local proof for the published GitHub Action"
+    },
+    "action.yml": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the Action input/output contract stays preserved"
+    },
+    "jankurai-installer.sh": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the installer's fixed signing, attestation and checksum checks"
+    },
+    "scripts/": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "exercise the score, policy, freshness and installer contracts"
+    },
+    "agent/": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify agent control maps stay coherent with the lanes they name"
+    },
+    "package.json": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the test entrypoint and locked dependencies stay coherent"
+    },
+    "package-lock.json": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the lockfile stays pinned to the HTTPS registry"
+    },
+    "README.md": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the documented pins and lanes stay runnable"
+    },
+    "AGENTS.md": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify agent routing names the required lane"
+    },
+    "LICENSE": {
+      "command": "bash scripts/ci-local.sh required",
+      "purpose": "verify the license file is present and unmodified"
+    }
+  }
+}
