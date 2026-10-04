@@ -7,9 +7,13 @@ branding:
 
 inputs:
   release-tag:
-    description: "Jankurai release tag to install from neverhuman/jankurai releases"
+    description: "Jankurai release tag to install from the releases of `repo`"
     required: false
     default: "v1.7.1"
+  repo:
+    description: "Repository publishing the signed release. The hub was renamed after v1.7.1, so tags up to v1.7.1 still verify under the pre-rename signing identity whichever hub name is given here."
+    required: false
+    default: "neverhuman/jankurai-audit"
   mode:
     description: "Audit mode: standard (blocking), advisory, ratchet, or release"
     required: false
@@ -54,6 +58,7 @@ runs:
       shell: bash
       env:
         JANKURAI_RELEASE_TAG: ${{ inputs.release-tag }}
+        JANKURAI_RELEASE_REPO: ${{ inputs.repo }}
       run: bash "$GITHUB_ACTION_PATH/jankurai-installer.sh"
     - name: Run full audit and enforce score floor
       id: audit

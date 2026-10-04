@@ -30,7 +30,8 @@ regression checks at floors 85 and 90.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `release-tag` | `v1.7.1` | Signed public auditor release from `neverhuman/jankurai` |
+| `release-tag` | `v1.7.1` | Signed public auditor release from `repo` |
+| `repo` | `neverhuman/jankurai-audit` | Repository publishing the release. Tags up to `v1.7.1` predate the hub rename and verify under the `neverhuman/jankurai` signing identity either way |
 | `path` | `.` | Repository to audit |
 | `mode` | `standard` | `standard`, `advisory`, `ratchet`, or `release` |
 | `fail-under` | `85` | Additional score floor; use `90` for a stronger requirement |
