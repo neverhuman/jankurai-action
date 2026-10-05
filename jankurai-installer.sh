@@ -24,6 +24,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || fail 'invalid repository'
 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || fail 'invalid version tag'
+[[ "$tag" != v1.8.0 ]] || fail 'v1.8.0 is not a published Jankurai release; use v1.7.1'
 [[ "$product" == jankurai || "$product" == tuiwright ]] || fail 'unsupported product'
 case "$(uname -s)/$(uname -m)" in
   Linux/x86_64) target=x86_64-unknown-linux-gnu ;;
